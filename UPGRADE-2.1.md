@@ -14,7 +14,7 @@
     for multiple environments.
 
   * The priorities for the built-in listeners have changed.
- 
+
     ```
                                             2.0         2.1
         security.firewall   kernel.request  64          8
@@ -79,7 +79,9 @@
 
  * The current locale for the user is not stored anymore in the session
 
-   You can simulate the old behavior by registering a listener that looks like the following, if the paramater which handle locale value in the request is `_locale`:
+   You can simulate the old behavior by registering a listener that looks like
+   the following if the parameter which handles the locale value in the
+   request is `_locale`:
 
    ```
    namespace XXX;
@@ -159,12 +161,52 @@
 
   * The custom factories for the firewall configuration are now
     registered during the build method of bundles instead of being registered
-    by the end-user. This means that you will you need to remove the 'factories'
+    by the end-user. This means that you will need to remove the 'factories'
     keys in your security configuration.
+
+    Before:
+
+     ``` yaml
+     security:
+       factories:
+         - "%kernel.root_dir%/../src/Acme/DemoBundle/Resources/config/security_factories.yml"
+     ```
+
+     ``` yaml
+     # src/Acme/DemoBundle/Resources/config/security_factories.yml
+     services:
+         security.authentication.factory.custom:
+             class:  Acme\DemoBundle\DependencyInjection\Security\Factory\CustomFactory
+             tags:
+                 - { name: security.listener.factory }
+     ```
+
+     After:
+
+      ```
+      namespace Acme\DemoBundle;
+
+      use Symfony\Component\HttpKernel\Bundle\Bundle;
+      use Symfony\Component\DependencyInjection\ContainerBuilder;
+      use Acme\DemoBundle\DependencyInjection\Security\Factory\CustomFactory;
+
+      class AcmeDemoBundle extends Bundle
+      {
+          public function build(ContainerBuilder $container)
+          {
+              parent::build($container);
+
+              $extension = $container->getExtension('security');
+              $extension->addSecurityListenerFactory(new CustomFactory());
+          }
+      }
+      ```
 
   * The Firewall listener is now registered after the Router listener. This
     means that specific Firewall URLs (like /login_check and /logout) must now
-    have proper routes defined in your routing configuration.
+    have proper routes defined in your routing configuration. Also, if you have
+    a custom 404 error page, make sure that you do not use any security related
+    features such as `is_granted` on it.
 
   * The user provider configuration has been refactored. The configuration
     for the chain provider and the memory provider has been changed:
@@ -208,9 +250,9 @@
      use Symfony\Bundle\SecurityBundle\Validator\Constraint\UserPassword;
      use Symfony\Bundle\SecurityBundle\Validator\Constraint as SecurityAssert;
      ```
-     
+
      After:
-     
+
      ```
      use Symfony\Component\Security\Core\Validator\Constraint\UserPassword;
      use Symfony\Component\Security\Core\Validator\Constraint as SecurityAssert;
@@ -492,11 +534,9 @@
     by default. Take care if your JavaScript relies on that. If you want to
     read the actual choice value, read the `value` attribute instead.
 
-  * In the choice field type's template, the structure of the `choices` variable
-    has changed.
-
-    The `choices` variable now contains `ChoiceView` objects with two getters,
-    `getValue()` and `getLabel()`, to access the choice data.
+  * In the choice field type's template, the `_form_is_choice_selected` method
+    used to identify a selected choice has been replaced with the `selectedchoice`
+    filter.
 
     Before:
 
@@ -511,9 +551,9 @@
     After:
 
     ```
-    {% for choice in choices %}
-        <option value="{{ choice.value }}"{% if _form_is_choice_selected(form, choice) %} selected="selected"{% endif %}>
-            {{ choice.label }}
+    {% for choice, label in choices %}
+        <option value="{{ choice.value }}"{% if choice is selectedchoice(choice.value) %} selected="selected"{% endif %}>
+            {{ label }}
         </option>
     {% endfor %}
     ```
@@ -1292,8 +1332,7 @@
 
 ### Session
 
-  * Flash messages now return an array based on their type. The old method is
-    still available but is now deprecated.
+  * Using `get` to retrieve flash messages now returns an array.
 
     ##### Retrieving the flash messages from a Twig template
 

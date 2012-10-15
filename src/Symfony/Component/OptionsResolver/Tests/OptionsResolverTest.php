@@ -258,6 +258,30 @@ class OptionsResolverTest extends \PHPUnit_Framework_TestCase
         ), $this->resolver->resolve($options));
     }
 
+    public function testResolveSucceedsIfOptionalWithAllowedValuesNotSet()
+    {
+        $this->resolver->setRequired(array(
+            'one',
+        ));
+
+        $this->resolver->setOptional(array(
+            'two',
+        ));
+
+        $this->resolver->setAllowedValues(array(
+            'one' => array('1', 'one'),
+            'two' => array('2', 'two'),
+        ));
+
+        $options = array(
+            'one' => '1',
+        );
+
+        $this->assertEquals(array(
+            'one' => '1',
+        ), $this->resolver->resolve($options));
+    }
+
     /**
      * @expectedException Symfony\Component\OptionsResolver\Exception\InvalidOptionsException
      */
@@ -378,6 +402,27 @@ class OptionsResolverTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(array(
             'one' => 1.23,
             'two' => false,
+        ), $this->resolver->resolve($options));
+    }
+
+    public function testResolveSucceedsIfOptionalWithTypeAndWithoutValue()
+    {
+        $this->resolver->setOptional(array(
+            'one',
+            'two',
+        ));
+
+        $this->resolver->setAllowedTypes(array(
+            'one' => 'string',
+            'two' => 'int',
+        ));
+
+        $options = array(
+            'two' => 1,
+        );
+
+        $this->assertEquals(array(
+            'two' => 1,
         ), $this->resolver->resolve($options));
     }
 

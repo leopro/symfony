@@ -28,11 +28,29 @@ class FilesystemTest extends \PHPUnit_Framework_TestCase
      */
     private $filesystem = null;
 
+    private static $symlinkOnWindows = null;
+
+    public static function setUpBeforeClass()
+    {
+        if (defined('PHP_WINDOWS_VERSION_MAJOR')) {
+            self::$symlinkOnWindows = true;
+            $originDir = tempnam(sys_get_temp_dir(), 'sl');
+            $targetDir = tempnam(sys_get_temp_dir(), 'sl');
+            if (true !== @symlink($originDir, $targetDir)) {
+                $report = error_get_last();
+                if (is_array($report) && false !== strpos($report['message'], 'error code(1314)')) {
+                    self::$symlinkOnWindows = false;
+                }
+            }
+        }
+    }
+
     public function setUp()
     {
         $this->filesystem = new Filesystem();
         $this->workspace = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.time().rand(0, 1000);
         mkdir($this->workspace, 0777, true);
+        $this->workspace = realpath($this->workspace);
     }
 
     public function tearDown()
@@ -861,6 +879,10 @@ class FilesystemTest extends \PHPUnit_Framework_TestCase
     {
         if (!function_exists('symlink')) {
             $this->markTestSkipped('symlink is not supported');
+        }
+
+        if (defined('PHP_WINDOWS_VERSION_MAJOR') && false === self::$symlinkOnWindows) {
+            $this->markTestSkipped('symlink requires "Create symbolic links" privilege on windows');
         }
     }
 
