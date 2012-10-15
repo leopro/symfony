@@ -115,7 +115,7 @@ class UniqueValidatorTest extends DoctrineOrmTestCase
         return $validatorFactory;
     }
 
-    public function createValidator($entityManagerName, $em, $validateClass = null, $uniqueFields = null, $errorPath = null, $repositoryMethod = 'findBy', $ignoreNull = true)
+    public function createValidator($entityManagerName, $em, $validateClass = null, $uniqueFields = null, $errorPath = null, $repositoryMethod = 'findBy', $ignoreNull = true, $parentClass = null)
     {
         if (!$validateClass) {
             $validateClass = 'Symfony\Bridge\Doctrine\Tests\Fixtures\SingleIdentEntity';
@@ -129,13 +129,20 @@ class UniqueValidatorTest extends DoctrineOrmTestCase
         $uniqueValidator = new UniqueEntityValidator($registry);
 
         $metadata = new ClassMetadata($validateClass);
-        $constraint = new UniqueEntity(array(
+        
+        $params = array(
             'fields' => $uniqueFields,
             'em' => $entityManagerName,
             'errorPath' => $errorPath,
             'repositoryMethod' => $repositoryMethod,
             'ignoreNull' => $ignoreNull
-        ));
+        );
+        
+        if (!is_null($parentClass)) {
+            $params['parentClass'] = $parentClass;
+        }
+        
+        $constraint = new UniqueEntity($params);
         $metadata->addConstraint($constraint);
 
         $metadataFactory = $this->createMetadataFactoryMock($metadata);
@@ -348,5 +355,33 @@ class UniqueValidatorTest extends DoctrineOrmTestCase
             'Associated entities are not allowed to have more than one identifier field'
         );
         $violationsList = $validator->validate($associated);
+    }
+    
+    public function testValidateUniquenessWithParent()
+    {
+        $entityManagerName = "foo";
+        $em = $this->createTestEntityManager();
+        $this->createSchema($em);
+        $validator = $this->createValidator($entityManagerName, $em, null, null, null, 'findBy', null, 'Symfony\Bridge\Doctrine\Tests\Fixtures\SingleIdentEntity');
+
+        $entity1 = new SingleIdentEntity(1, 'Foo');
+        $violationsList = $validator->validate($entity1);
+        $this->assertEquals(0, $violationsList->count(), "No violations found on entity before it is saved to the database.");
+
+        $em->persist($entity1);
+        $em->flush();
+
+        $violationsList = $validator->validate($entity1);
+        $this->assertEquals(0, $violationsList->count(), "No violations found on entity after it was saved to the database.");
+
+        $entity2 = new SingleIdentEntity(2, 'Foo');
+
+        $violationsList = $validator->validate($entity2);
+        $this->assertEquals(1, $violationsList->count(), "No violations found on entity after it was saved to the database.");
+
+        $violation = $violationsList[0];
+        $this->assertEquals('This value is already used.', $violation->getMessage());
+        $this->assertEquals('name', $violation->getPropertyPath());
+        $this->assertEquals('Foo', $violation->getInvalidValue());
     }
 }

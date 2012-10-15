@@ -63,7 +63,7 @@ class UniqueEntityValidator extends ConstraintValidator
             $em = $this->registry->getManagerForClass(get_class($entity));
         }
 
-        $className = $this->context->getCurrentClass();
+        $className = (!is_null($constraint->parentClass)) ? $constraint->parentClass : $this->context->getCurrentClass();
         $class = $em->getClassMetadata($className);
         /* @var $class \Doctrine\Common\Persistence\Mapping\ClassMetadata */
 
